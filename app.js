@@ -1,6 +1,6 @@
-// Importação das dependências do Firebase
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js';
-import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js';
+// Importar módulos necessários do Firebase v11.1.0
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js';
+import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/11.1.0/firebase-database.js';
 
 // Configuração do Firebase
 const firebaseConfig = {
@@ -20,17 +20,19 @@ const database = getDatabase(app);
 
 // Variáveis do Jogo
 let currentPlayer = 'X';
-let board = Array(16).fill(null);
-let gameRef = ref(database, 'game');
+let board = Array(16).fill(null); // Tabuleiro 4x4
+let gameRef = ref(database, 'game'); // Referência ao banco de dados
 
 // Inicializando o tabuleiro
 function createBoard() {
   const boardElement = document.getElementById('board');
-  boardElement.innerHTML = '';
+  boardElement.innerHTML = ''; // Limpar o tabuleiro antes de renderizar
+
+  // Criar as células do tabuleiro
   board.forEach((cell, index) => {
     const cellElement = document.createElement('div');
-    cellElement.textContent = cell;
-    cellElement.onclick = () => makeMove(index);
+    cellElement.textContent = cell || ''; // Se não tiver valor, não exibe nada
+    cellElement.onclick = () => makeMove(index); // Adicionar evento de clique para cada célula
     boardElement.appendChild(cellElement);
   });
 }
@@ -39,10 +41,11 @@ function createBoard() {
 function makeMove(index) {
   if (board[index] || !gameRef) return; // Se a célula já tiver algo ou se o jogo não foi inicializado
 
-  board[index] = currentPlayer;
-  currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+  board[index] = currentPlayer; // Coloca o jogador atual na célula
+  currentPlayer = currentPlayer === 'X' ? 'O' : 'X'; // Alterna o jogador
 
-  set(gameRef, { board });
+  // Atualizar a base de dados com o novo estado do jogo
+  set(gameRef, { board, currentPlayer });
 
   checkWinner();
   createBoard();
@@ -56,6 +59,7 @@ function checkWinner() {
     [0, 5, 10, 15], [3, 6, 9, 12] // Diagonais
   ];
 
+  // Verifica cada padrão de vitória
   for (const pattern of winPatterns) {
     const [a, b, c, d] = pattern;
     if (board[a] && board[a] === board[b] && board[a] === board[c] && board[a] === board[d]) {
@@ -64,6 +68,7 @@ function checkWinner() {
     }
   }
 
+  // Verificar se há empate
   if (board.every(cell => cell !== null)) {
     document.getElementById('message').textContent = 'Empate!';
   }
@@ -73,9 +78,9 @@ function checkWinner() {
 onValue(gameRef, (snapshot) => {
   const gameData = snapshot.val();
   if (gameData) {
-    board = gameData.board || board;
-    currentPlayer = gameData.currentPlayer || 'X';
-    createBoard();
+    board = gameData.board || board; // Atualiza o tabuleiro
+    currentPlayer = gameData.currentPlayer || 'X'; // Atualiza o jogador atual
+    createBoard(); // Renderiza novamente o tabuleiro
   }
 });
 
@@ -87,4 +92,4 @@ function initGame() {
   });
 }
 
-initGame();
+initGame(); // Inicializa o jogo ao carregar a página
