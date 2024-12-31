@@ -71,24 +71,21 @@ function assignPlayerRole(playerId) {
 // Sincronizar o estado do jogo com o Firebase
 // Sincronizar o estado do jogo com o Firebase
 // Sincronizar o estado do jogo com o Firebase
+// Sincronizar o estado do jogo com o Firebase
 onValue(gameRef, (snapshot) => {
   const gameData = snapshot.val();
-  console.log("Dados do jogo:", gameData); 
   if (gameData) {
     board = Array.isArray(gameData.board) ? gameData.board : Array(16).fill(null);
-    playerTurn = gameData.currentPlayer || 'X';
+    playerTurn = gameData.currentPlayer || 'X'; // Atualiza o turno do jogador a partir do Firebase
     const status = gameData.status;
-
-    // Verificar se o status é "waiting" e exibir mensagem apenas se um jogador estiver ausente
+    
     if (status === 'waiting') {
       const players = gameData.players || {};
       const message = (players.playerX && players.playerO)
         ? "Jogo começando! Aguardando o segundo jogador..."
         : "Aguardando outro jogador...";
       document.getElementById('message').textContent = message;
-    } 
-    // Se o status for "playing", o jogo deve começar
-    else if (status === 'playing') {
+    } else if (status === 'playing') {
       createBoard();
       const message = playerTurn === currentPlayer
         ? "Sua vez!"
@@ -96,7 +93,12 @@ onValue(gameRef, (snapshot) => {
       document.getElementById('message').textContent = message;
     }
   }
+  console.log("Player Turn:", playerTurn);
+console.log("Current Player:", currentPlayer);
+console.log("Game Data:", gameData);
+
 });
+
 
 
 
@@ -117,16 +119,26 @@ function createBoard() {
 
 
 // Fazer uma jogada
+// Fazer uma jogada
 function makeMove(index) {
   if (board[index] || currentPlayer !== playerTurn) {
     document.getElementById('message').textContent = "Não é sua vez!";
     return;
   }
+  
+  // Atualiza o tabuleiro com a jogada
   board[index] = currentPlayer;
+
+  // Alterna o jogador (de X para O e vice-versa)
   const nextPlayer = currentPlayer === 'X' ? 'O' : 'X';
+
+  // Atualiza o banco de dados com a nova jogada e o turno do próximo jogador
   update(gameRef, { board, currentPlayer: nextPlayer });
+
+  // Verificar se há um vencedor após a jogada
   checkWinner();
 }
+
 
 // Verificar vencedor ou empate
 function checkWinner() {
