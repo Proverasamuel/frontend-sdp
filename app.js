@@ -40,27 +40,35 @@ function assignPlayerRole(playerId) {
   const playersRef = ref(database, 'game/players');
   onValue(playersRef, (snapshot) => {
     const players = snapshot.val() || {};
+    let updated = false;
+
     if (!players.playerX) {
       set(ref(database, 'game/players/playerX'), playerId);
       currentPlayer = 'X';
       document.getElementById('message').textContent = "Você é o jogador X. Aguardando outro jogador...";
+      updated = true;
     } else if (!players.playerO) {
       set(ref(database, 'game/players/playerO'), playerId);
       currentPlayer = 'O';
       document.getElementById('message').textContent = "Você é o jogador O. Jogo começando!";
-      // Atualizar o status do jogo para "playing"
+      updated = true;
+    }
+
+    // Somente atualiza o status se ambos os jogadores estiverem conectados
+    if (updated && players.playerX && players.playerO) {
       update(gameRef, { status: 'playing' });
-    } else {
-      document.getElementById('message').textContent = "O jogo já está cheio!";
     }
   });
 }
 
+
+// Sincronizar o estado do jogo com o Firebase
 // Sincronizar o estado do jogo com o Firebase
 onValue(gameRef, (snapshot) => {
   const gameData = snapshot.val();
   if (gameData) {
-    board = gameData.board || board;
+    // Garantir que board seja sempre um array
+    board = Array.isArray(gameData.board) ? gameData.board : Array(16).fill(null);
     playerTurn = gameData.currentPlayer || 'X';
     const status = gameData.status;
 
@@ -79,17 +87,22 @@ onValue(gameRef, (snapshot) => {
   }
 });
 
+
+// Criar o tabuleiro
 // Criar o tabuleiro
 function createBoard() {
   const boardElement = document.getElementById('board');
   boardElement.innerHTML = '';
-  board.forEach((cell, index) => {
-    const cellElement = document.createElement('div');
-    cellElement.textContent = cell || '';
-    cellElement.onclick = () => makeMove(index);
-    boardElement.appendChild(cellElement);
-  });
+  if (Array.isArray(board)) { // Verificar se board é um array
+    board.forEach((cell, index) => {
+      const cellElement = document.createElement('div');
+      cellElement.textContent = cell || '';
+      cellElement.onclick = () => makeMove(index);
+      boardElement.appendChild(cellElement);
+    });
+  }
 }
+
 
 // Fazer uma jogada
 function makeMove(index) {
