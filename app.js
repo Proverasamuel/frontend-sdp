@@ -45,13 +45,31 @@ function assignPlayerRole(playerId) {
     const players = snapshot.val() || {};
     
     // Atribuindo X se playerX não existir
+    if (players.playerX === playerId || players.playerO === playerId) {
+      // ID já existe, gerar novo ID
+      playerId = Math.random().toString(36).substr(2, 9);
+      // Informar o jogador para atualizar sua conexão com o novo ID
+      document.getElementById('message').textContent = "Seu ID já está em uso. Por favor, atualize sua conexão com o novo ID: " + playerId;
+      return;
+    }
+
+    // Verificar se ambos os papéis já foram atribuídos
+    if (players.playerX && players.playerO) {
+      document.getElementById('message').textContent = "O jogo já está cheio!";
+      return;
+    }
+
+    // Atribuir papel de X se estiver disponível
     if (!players.playerX) {
       set(ref(database, 'game/players/playerX'), playerId);
-      currentPlayer = 'X';
-      document.getElementById('message').textContent = "Você é o jogador X. Aguardando outro jogador...";
-    } 
+      // ...
+    } else {
+      // Atribuir papel de O
+      set(ref(database, 'game/players/playerO'), playerId);
+      // ...
+    }
     // Atribuindo O se playerO não existir
-    else if (!players.playerO) {
+    /* else if (!players.playerO) {
       set(ref(database, 'game/players/playerO'), playerId);
       currentPlayer = 'O';
       document.getElementById('message').textContent = "Você é o jogador O. Jogo começando!";
@@ -62,7 +80,7 @@ function assignPlayerRole(playerId) {
     // Se ambos os jogadores já estiverem no jogo, não faz nada
     else {
       document.getElementById('message').textContent = "O jogo já está cheio!";
-    }
+    } */
   });
 }
 
