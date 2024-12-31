@@ -36,48 +36,59 @@ function initGame() {
 }
 
 // Atribuir papel ao jogador (X ou O)
+
+
+// Atribuir papel ao jogador (X ou O)
 function assignPlayerRole(playerId) {
   const playersRef = ref(database, 'game/players');
   onValue(playersRef, (snapshot) => {
     const players = snapshot.val() || {};
-    let updated = false;
-
+    
+    // Atribuindo X se playerX não existir
     if (!players.playerX) {
       set(ref(database, 'game/players/playerX'), playerId);
       currentPlayer = 'X';
       document.getElementById('message').textContent = "Você é o jogador X. Aguardando outro jogador...";
-      updated = true;
-    } else if (!players.playerO) {
+    } 
+    // Atribuindo O se playerO não existir
+    else if (!players.playerO) {
       set(ref(database, 'game/players/playerO'), playerId);
       currentPlayer = 'O';
       document.getElementById('message').textContent = "Você é o jogador O. Jogo começando!";
-      updated = true;
-    }
-
-    // Somente atualiza o status se ambos os jogadores estiverem conectados
-    if (updated && players.playerX && players.playerO) {
+      
+      // Atualizar status para "playing" quando o segundo jogador se conectar
       update(gameRef, { status: 'playing' });
+    } 
+    // Se ambos os jogadores já estiverem no jogo, não faz nada
+    else {
+      document.getElementById('message').textContent = "O jogo já está cheio!";
     }
   });
 }
 
 
+
+// Sincronizar o estado do jogo com o Firebase
 // Sincronizar o estado do jogo com o Firebase
 // Sincronizar o estado do jogo com o Firebase
 onValue(gameRef, (snapshot) => {
   const gameData = snapshot.val();
+  console.log("Dados do jogo:", gameData); 
   if (gameData) {
-    // Garantir que board seja sempre um array
     board = Array.isArray(gameData.board) ? gameData.board : Array(16).fill(null);
     playerTurn = gameData.currentPlayer || 'X';
     const status = gameData.status;
 
+    // Verificar se o status é "waiting" e exibir mensagem apenas se um jogador estiver ausente
     if (status === 'waiting') {
-      const message = currentPlayer === 'X'
-        ? "Aguardando outro jogador..."
-        : "Jogo em espera. Conectando jogadores...";
+      const players = gameData.players || {};
+      const message = (players.playerX && players.playerO)
+        ? "Jogo começando! Aguardando o segundo jogador..."
+        : "Aguardando outro jogador...";
       document.getElementById('message').textContent = message;
-    } else if (status === 'playing') {
+    } 
+    // Se o status for "playing", o jogo deve começar
+    else if (status === 'playing') {
       createBoard();
       const message = playerTurn === currentPlayer
         ? "Sua vez!"
@@ -86,6 +97,7 @@ onValue(gameRef, (snapshot) => {
     }
   }
 });
+
 
 
 // Criar o tabuleiro
