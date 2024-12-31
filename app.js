@@ -1,3 +1,7 @@
+// Importação das dependências do Firebase
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js';
+import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js';
+
 // Configuração do Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyAkJae6gGTeYkjsFeUpPxmLDuvEAEoay-w",
@@ -10,13 +14,14 @@ const firebaseConfig = {
   measurementId: "G-N65SGQDMEB"
 };
 
-const app = firebase.initializeApp(firebaseConfig);
-const database = firebase.database(app);
+// Inicialização do Firebase
+const app = initializeApp(firebaseConfig);
+const database = getDatabase(app);
 
 // Variáveis do Jogo
 let currentPlayer = 'X';
 let board = Array(16).fill(null);
-let gameRef = database.ref('game');
+let gameRef = ref(database, 'game');
 
 // Inicializando o tabuleiro
 function createBoard() {
@@ -37,7 +42,7 @@ function makeMove(index) {
   board[index] = currentPlayer;
   currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
 
-  gameRef.set({ board });
+  set(gameRef, { board });
 
   checkWinner();
   createBoard();
@@ -65,7 +70,7 @@ function checkWinner() {
 }
 
 // Atualizar o estado do jogo com Firebase
-gameRef.on('value', snapshot => {
+onValue(gameRef, (snapshot) => {
   const gameData = snapshot.val();
   if (gameData) {
     board = gameData.board || board;
@@ -76,7 +81,7 @@ gameRef.on('value', snapshot => {
 
 // Inicializar o jogo
 function initGame() {
-  gameRef.set({
+  set(gameRef, {
     board: Array(16).fill(null),
     currentPlayer: 'X'
   });
