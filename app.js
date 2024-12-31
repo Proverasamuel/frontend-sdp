@@ -1,6 +1,6 @@
 // Importar módulos necessários do Firebase v11.1.0
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js';
-import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/11.1.0/firebase-database.js';
+import { getDatabase, ref, set, update, onValue } from 'https://www.gstatic.com/firebasejs/11.1.0/firebase-database.js';
 
 // Configuração do Firebase
 const firebaseConfig = {
@@ -8,7 +8,7 @@ const firebaseConfig = {
   authDomain: "jogo-da-velha-17ea3.firebaseapp.com",
   databaseURL: "https://jogo-da-velha-17ea3-default-rtdb.firebaseio.com",
   projectId: "jogo-da-velha-17ea3",
-  storageBucket: "jogo-da-velha-17ea3.firebasestorage.app",
+  storageBucket: "jogo-da-velha-17ea3.appspot.com",
   messagingSenderId: "890129790192",
   appId: "1:890129790192:web:4ee41bf6ba3c8d48e8fe35",
   measurementId: "G-N65SGQDMEB"
@@ -19,39 +19,91 @@ const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 
 // Variáveis do Jogo
-let currentPlayer = 'X';
+let playerId = Math.random().toString(36).substr(2, 9); // Identificador único do jogador
+let currentPlayer = null; // Papel do jogador atual (X ou O)
+let playerTurn = null; // Jogador que deve jogar
 let board = Array(16).fill(null); // Tabuleiro 4x4
-let gameRef = ref(database, 'game'); // Referência ao banco de dados
+const gameRef = ref(database, 'game'); // Referência ao jogo no banco de dados
 
-// Inicializando o tabuleiro
+// Inicializar o jogo no Firebase
+function initGame() {
+  set(gameRef, {
+    board: Array(16).fill(null),
+    currentPlayer: 'X',
+    players: { playerX: null, playerO: null },
+    status: 'waiting' // Status inicial do jogo
+  }).catch(error => console.error("Erro ao inicializar o jogo:", error));
+}
+
+// Atribuir papel ao jogador (X ou O)
+function assignPlayerRole(playerId) {
+  const playersRef = ref(database, 'game/players');
+  onValue(playersRef, (snapshot) => {
+    const players = snapshot.val() || {};
+    if (!players.playerX) {
+      set(ref(database, 'game/players/playerX'), playerId);
+      currentPlayer = 'X';
+      document.getElementById('message').textContent = "Você é o jogador X. Aguardando outro jogador...";
+    } else if (!players.playerO) {
+      set(ref(database, 'game/players/playerO'), playerId);
+      currentPlayer = 'O';
+      document.getElementById('message').textContent = "Você é o jogador O. Jogo começando!";
+      // Atualizar o status do jogo para "playing"
+      update(gameRef, { status: 'playing' });
+    } else {
+      document.getElementById('message').textContent = "O jogo já está cheio!";
+    }
+  });
+}
+
+// Sincronizar o estado do jogo com o Firebase
+onValue(gameRef, (snapshot) => {
+  const gameData = snapshot.val();
+  if (gameData) {
+    board = gameData.board || board;
+    playerTurn = gameData.currentPlayer || 'X';
+    const status = gameData.status;
+
+    if (status === 'waiting') {
+      const message = currentPlayer === 'X'
+        ? "Aguardando outro jogador..."
+        : "Jogo em espera. Conectando jogadores...";
+      document.getElementById('message').textContent = message;
+    } else if (status === 'playing') {
+      createBoard();
+      const message = playerTurn === currentPlayer
+        ? "Sua vez!"
+        : `Aguarde, é a vez do jogador ${playerTurn}`;
+      document.getElementById('message').textContent = message;
+    }
+  }
+});
+
+// Criar o tabuleiro
 function createBoard() {
   const boardElement = document.getElementById('board');
-  boardElement.innerHTML = ''; // Limpar o tabuleiro antes de renderizar
-
-  // Criar as células do tabuleiro
+  boardElement.innerHTML = '';
   board.forEach((cell, index) => {
     const cellElement = document.createElement('div');
-    cellElement.textContent = cell || ''; // Se não tiver valor, não exibe nada
-    cellElement.onclick = () => makeMove(index); // Adicionar evento de clique para cada célula
+    cellElement.textContent = cell || '';
+    cellElement.onclick = () => makeMove(index);
     boardElement.appendChild(cellElement);
   });
 }
 
-// Função para fazer um movimento
+// Fazer uma jogada
 function makeMove(index) {
-  if (board[index] || !gameRef) return; // Se a célula já tiver algo ou se o jogo não foi inicializado
-
-  board[index] = currentPlayer; // Coloca o jogador atual na célula
-  currentPlayer = currentPlayer === 'X' ? 'O' : 'X'; // Alterna o jogador
-
-  // Atualizar a base de dados com o novo estado do jogo
-  set(gameRef, { board, currentPlayer });
-
+  if (board[index] || currentPlayer !== playerTurn) {
+    document.getElementById('message').textContent = "Não é sua vez!";
+    return;
+  }
+  board[index] = currentPlayer;
+  const nextPlayer = currentPlayer === 'X' ? 'O' : 'X';
+  update(gameRef, { board, currentPlayer: nextPlayer });
   checkWinner();
-  createBoard();
 }
 
-// Função para verificar se há um vencedor
+// Verificar vencedor ou empate
 function checkWinner() {
   const winPatterns = [
     [0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11], [12, 13, 14, 15], // Linhas horizontais
@@ -59,7 +111,6 @@ function checkWinner() {
     [0, 5, 10, 15], [3, 6, 9, 12] // Diagonais
   ];
 
-  // Verifica cada padrão de vitória
   for (const pattern of winPatterns) {
     const [a, b, c, d] = pattern;
     if (board[a] && board[a] === board[b] && board[a] === board[c] && board[a] === board[d]) {
@@ -68,28 +119,11 @@ function checkWinner() {
     }
   }
 
-  // Verificar se há empate
   if (board.every(cell => cell !== null)) {
     document.getElementById('message').textContent = 'Empate!';
   }
 }
 
-// Atualizar o estado do jogo com Firebase
-onValue(gameRef, (snapshot) => {
-  const gameData = snapshot.val();
-  if (gameData) {
-    board = gameData.board || board; // Atualiza o tabuleiro
-    currentPlayer = gameData.currentPlayer || 'X'; // Atualiza o jogador atual
-    createBoard(); // Renderiza novamente o tabuleiro
-  }
-});
-
-// Inicializar o jogo
-function initGame() {
-  set(gameRef, {
-    board: Array(16).fill(null),
-    currentPlayer: 'X'
-  });
-}
-
-initGame(); // Inicializa o jogo ao carregar a página
+// Inicializar o jogo ao carregar a página
+initGame();
+assignPlayerRole(playerId);
